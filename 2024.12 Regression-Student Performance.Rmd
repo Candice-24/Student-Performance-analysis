@@ -3,8 +3,8 @@ title: "Regression Final Group Project_Group A"
 author: "Meng-Hsuan Ho, Pin Tzu Tseng, & Dongni Li"
 date: "2024-12-10"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
