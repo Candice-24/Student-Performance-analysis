@@ -1,0 +1,402 @@
+---
+title: "Regression Final Group Project_Group A"
+author: "Meng-Hsuan Ho, Pin Tzu Tseng, & Dongni Li"
+date: "2024-12-10"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rcompanion)
+library(olsrr)
+library(glmnet)
+library(leaps)
+```
+
+## 1. Identify a data Table/Data Source that satisfies the requirements for your Project
+
+**Ans** 
+
+- one dependent variable: Exam_Score 
+- 5 or more independent variables: Hours_Studied, Attendance, Extracurricular_Activities, Sleep_Hours, Motivation_Level, Tutoring_Sessions, School_Type 
+- two or more of the independent variables being categorical: Extracurricular_Activities, Motivation_Level, School_Type 
+- at least 100 observational rows: the data set has 6,607 observational rows
+
+## 2. Describe your Data
+
+**Ans** This dataset provides a comprehensive overview of various factors affecting student performance in exams. It includes information on study habits, attendance, parental involvement, and other aspects influencing academic success.
+
+## 3. Use R code to import your Data Table into R Studio.
+
+```{r}
+stu_perform <- read_csv("StudentPerformanceFactors.csv")
+stu_perform
+```
+
+## 4. Define/Describe all Variables of your Data Table
+
+**Ans**
+
+-   Exam_Score: Final exam score.
+-   Hours_Studied: Number of hours spent studying per week.
+-   Attendance: Percentage of classes attended.
+-   Extracurricular_Activities: Participation in extracurricular activities (Yes, No).
+-   Sleep_Hours: Average number of hours of sleep per night.
+-   Motivation_Level: Student's level of motivation (Low, Medium, High).
+-   Tutoring_Sessions: Number of tutoring sessions attended per month.
+-   School_Type: Type of school attended (Public, Private).
+
+## 5. Indicate source of your Data Table
+
+**Ans**
+
+[Student Performance Factors](https://www.kaggle.com/datasets/lainguyn123/student-performance-factors/data): This data set is a synthetic dataset generated for educational and analytical purposes. The data is not sourced from any real-world institutions but is created to simulate realistic scenarios for analyzing student performance factors.
+
+## 6. Missing value analysis
+
+```{r}
+stu_perform <- stu_perform |> 
+  select(Exam_Score, Hours_Studied, Attendance,Extracurricular_Activities,
+        Sleep_Hours, Motivation_Level, Tutoring_Sessions,School_Type)
+```
+
+```{r}
+sum(is.na(stu_perform))
+```
+
+```{r}
+colSums(is.na(stu_perform))
+```
+
+There is no missing value in the data set.
+
+## 7. Generate relevant data visual plots that explore multicollinearity for the quantitative variables and normality for the quantitative variables as well.  Also, use R code to confirm the levels of the categorical variables. (Pin Tzu)
+
+```{r}
+#normality for the quantitative variables
+
+plotNormalHistogram(stu_perform$Hours_Studied)
+plotNormalHistogram(stu_perform$Attendance)
+plotNormalHistogram(stu_perform$Sleep_Hours)
+plotNormalHistogram(stu_perform$Tutoring_Sessions)
+```
+
+As these histogram, we can see the variable Hours_Studied, Attendance, and Sleep_Hours have normal distribution, but variable Tutoring_Sessions has right skewed distribution.
+
+```{r}
+#level of categorical variables
+EA <- factor(stu_perform$Extracurricular_Activities)
+levels(EA)
+
+ML <- factor(stu_perform$Motivation_Level)
+levels(ML)
+
+ST <- factor(stu_perform$School_Type)
+levels(ST)
+```
+
+the level of Extracurricular_Activities is no and yes.
+
+the level of Motivation_Level is high, low, and medium.
+
+the level of School_Type is private and public.
+
+```{r}
+#only quantitative variable multiple regression model
+only_numva <- 
+  stu_perform |> 
+  select(Exam_Score, Hours_Studied, Attendance, 
+         Sleep_Hours, Tutoring_Sessions)
+only_numva 
+```
+
+I selected the variables only included quantitative variables to test their multicollinearity.
+
+```{r}
+#multicollinearity for quantitative variables
+cor <- cor(only_numva)
+cor
+```
+
+They don't have multicollinearity problem, and I also create a multicollinearity plot.
+
+```{r}
+#multicollinearity plot for quantitative variables
+corrplot::corrplot(cor, method = "color", addCoef.col = "black")
+```
+
+## 8. Using R code, produce a full Regression Model that consists of quantitative and categorical variables. (Pin Tzu)
+
+```{r}
+#full multiple regression model (include all variables)
+all_lm <- lm(data = stu_perform, Exam_Score ~ Hours_Studied + 
+               Attendance+ Extracurricular_Activities + Sleep_Hours +
+               Motivation_Level + Tutoring_Sessions + School_Type)
+all_lm
+```
+
+Full model:
+
+Exam_Score = 45.347739 + 0.295459 (Hours_Studied) + 0.196689(Attendance) + 0.526723(Extracurricular_ActivitiesYes)-0.029212(Sleep_Hours) + -1.045458(Motivation_LevelLow)-0.530504(Motivation_LevelMedium) + 0.487480(Tutoring_Sessions)-0.008441(School_TypePublic)
+
+## 9. Make use of the R generated dummy variable matrices(Pin Tzu)
+
+```{r}
+contrasts(as.factor(stu_perform$Extracurricular_Activities))
+```
+
+```{r}
+contrasts(as.factor(stu_perform$Motivation_Level))
+```
+
+```{r}
+contrasts(as.factor(stu_perform$School_Type))
+```
+
+## 10. Using only the quantitative variables as predictors, produce a model using matrix methods. Also use matrix methods to find the fitted values and the residuals (Dongni)
+
+```{r}
+quantitative_data <- stu_perform[, c("Exam_Score", "Hours_Studied", "Attendance", "Sleep_Hours", "Tutoring_Sessions")]
+
+X <- as.matrix(cbind(1, quantitative_data[, -1]))
+y <- as.matrix(quantitative_data$Exam_Score)
+```
+
+```{r}
+beta <- solve(t(X) %*% X) %*% t(X) %*% y
+beta
+```
+
+quantitative variables model:
+
+Exam_Score = 45.11 + 0.2945535(Hours_Studied) + 0.196479(Attendance) - 0.02869808(Sleep_Hours) + 0.4885082(Tutoring_Sessions)
+
+```{r}
+#fitted value
+y_hat <- X %*% beta
+head(y_hat)
+```
+
+```{r}
+# residuals
+residuals <- y - y_hat
+head(residuals)
+```
+
+## 11. Produce an output summary table to be used to analyze and evaluate the full model (Adjusted R squared, Standard Error, Significance of Variables, ect…) (Meng Hsuan)
+
+
+```{r}
+summary(all_lm)
+```
+
+According to the summary table of full model, it shows that the p value of variable "Sleep_Hours" and "School_TypePublic" is higher than 0.05 which is not significant. Although Tutoring_Sessions is not normality, but its p value show it is significant, so we will consider it in our final model.
+
+Otherwise, the Adjusted R-squared is 0.5781 which indicate approximately half of the observed variation can be explained by the model’s inputs. 
+
+Also, residual standard error is 2.527 unit far from the regression line in average.
+
+```{r}
+qqnorm(all_lm$residuals)
+qqline(all_lm$residuals)
+```
+
+We used the residual plot to see the normality. The data points do not always align in the middle of the plot. The distribution of the residuals is not pretty normal. There are lots of outliers.
+
+```{r}
+boxplot(all_lm$residuals)
+```
+
+The residual boxplot also presents many outliers.
+
+```{r}
+ggplot(all_lm, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+```
+
+In this residual plot doesn't suggest a linear relationship which may caused by many outliers.
+
+We conclude that the data set should be transformed to exclude the outliers.
+
+```{r}
+ex_outlier <- stu_perform |> 
+  mutate(
+    residuals = all_lm$residuals) |> 
+  filter(residuals <10)
+ex_outlier
+
+ex_outlier_lm <- lm(data = ex_outlier, Exam_Score ~ Hours_Studied + 
+               Attendance+ Extracurricular_Activities + Sleep_Hours +
+               Motivation_Level + Tutoring_Sessions + School_Type)
+summary(ex_outlier_lm)
+```
+
+After excluding the outliers from the full model, the residual standard error gets smaller and Adjusted R-squared is higher to get close to one which means the full model gets better after transformation.
+
+```{r}
+qqnorm(ex_outlier_lm$residuals)
+qqline(ex_outlier_lm$residuals)
+```
+
+The residual plot shows the data points align on the line after excluding the outliers.
+
+```{r}
+boxplot(ex_outlier_lm$residuals)
+```
+
+The outlier is fewer in the boxplot after excluding the outliers.
+
+```{r}
+ggplot(ex_outlier_lm, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+```
+
+After excluding the outliers, the residual plot suggests a linear relationship because it shows the constant variance.
+
+## 12. Use procedures and techniques explored in class to produce confidence intervals for the independent quantitative variables of your model. Choose at least two of the quantitative variables to find confidence intervals for.(Dongni)
+
+```{r}
+model <- lm(Exam_Score ~ Hours_Studied + Sleep_Hours + Attendance + 
+              Tutoring_Sessions, data = stu_perform)
+
+confint(model, level = 0.95) 
+```
+
+## 13. Produce a reduced model (removing variables of your choice with justification). Use R summary coding for both models and offer justification for choosing one model over the other. Also apply this model technique: Mallows's Cp&AIC&SBC with ols_step_best_subset() function from 11/20 model selection.(Meng Hsuan)
+
+Due to the not significant variable "Sleep_Hours" and "School_TypePublic", we decided to remove them from our model.
+
+Firstly, we examine the model with full data instead of excluding the outliers.
+
+```{r}
+stu_perform_lm2 <- lm(Exam_Score ~ Hours_Studied + Attendance + Extracurricular_Activities + Motivation_Level + Tutoring_Sessions, stu_perform)
+
+summary(stu_perform_lm2)
+```
+Still, the Adjusted R-squared shows as same.
+
+We used stepwise regression method to choose the best model to predict student exam score.
+
+```{r}
+intercept_only <- lm(Exam_Score ~ 1, data=stu_perform)
+intercept_only
+```
+
+```{r}
+all <- lm(Exam_Score ~ ., data=stu_perform)
+all
+```
+
+```{r}
+forward <- step(intercept_only, direction='forward', 
+                scope=formula(all), trace=0)
+forward
+
+forward$anova
+```
+
+We found out the best model is:
+
+Exam_Score = 45.1323 + 0.1968(Attendance) + 0.2954(Hours_Studied) + 0.4879(Tutoring_Sessions) - 1.0452(Motivation_LevelLow) -0.5304(Motivation_LevelMedium) + 0.5266(Extracurricular_ActivitiesYes)
+
+```{r}
+stu_perform_lm3 <- lm(Exam_Score ~ Attendance + Hours_Studied + 
+    Tutoring_Sessions + Motivation_Level + Extracurricular_Activities, 
+    data = stu_perform)
+
+ols_step_best_subset(stu_perform_lm3)
+```
+
+According to the table, the fifth model including independent variable of Attendance, Hours_Studied, Tutoring_Sessions, Motivation_Level, and Extracurricular_Activities has highest Adjusted R-squared and lowest AIC, so that one is the best model.
+
+In the second place, we examine the model without outliers.
+
+```{r}
+ex_outlier_lm2 <- lm(Exam_Score ~ Hours_Studied + Attendance + Extracurricular_Activities + Motivation_Level + Tutoring_Sessions, ex_outlier)
+
+summary(ex_outlier_lm2)
+```
+
+The residual standard error is smaller and Adjusted R-squared is higher compare to the model with full data.
+
+We used stepwise regression method to choose the best model after transformaion to predict student exam score.
+
+```{r}
+ex_outlier <- ex_outlier |> 
+  select(Exam_Score,Hours_Studied,Attendance, Extracurricular_Activities, 
+    Motivation_Level, Tutoring_Sessions)
+
+intercept_only2 <- lm(Exam_Score ~ 1, data = ex_outlier)
+intercept_only2
+```
+
+```{r}
+all2 <- lm(Exam_Score ~ ., data = ex_outlier)
+all2
+```
+
+```{r}
+forward2 <- step(intercept_only, direction='forward', 
+                 scope=formula(all2), trace=0)
+forward2
+
+forward2$anova
+```
+
+We found out the best model after transformation is:
+
+Exam_Score = 45.1323 + 0.1968(Attendance) + 0.2954(Hours_Studied) + 0.4879(Tutoring_Sessions) - 1.0452(Motivation_LevelLow) -0.5304(Motivation_LevelMedium) + 0.5266(Extracurricular_ActivitiesYes)
+
+```{r}
+ex_outlier_lm3 <- lm(Exam_Score ~ Attendance + Hours_Studied + 
+    Tutoring_Sessions + Motivation_Level + Extracurricular_Activities, 
+    data = ex_outlier)
+
+ols_step_best_subset(ex_outlier_lm3)
+```
+
+According to the table, the fifth model including independent variable of Attendance, Hours_Studied, Tutoring_Sessions, Motivation_Level, and Extracurricular_Activities has highest Adjusted R-squared and lowest AIC, so that one is the best model after excluding the outliers.
+
+## 14. Research and apply a model analysis technique not discussed in class to your full model or reduced model.  Fully explain the technique or procedure and how it is being applied to your specific model. (Dongni)
+
+```{r}
+student1 <- stu_perform |> 
+  select("Hours_Studied", "Attendance", "Sleep_Hours", "Tutoring_Sessions","Motivation_Level","Extracurricular_Activities","Exam_Score")
+```
+
+Subset Selection, specifically implemented through the regsubsets function, uses Exhaustive Search to identify the combinations of independent variables that best explain the target variable (Exam_Score). It evaluates all possible combinations of predictors and uses statistical metrics, such as Adjusted R-squared (Adj.R2), Mallows' Cp (Cp), and Bayesian Information Criterion (BIC), to assess each model's performance and assist in selecting the optimal model.
+
+```{r}
+model_try <- regsubsets(Exam_Score ~ .,data = student1, method = "exhaustive")
+summary(model_try)
+res_sum <- summary(model_try)
+data.frame(
+  Adj.R2 = res_sum$adjr2,
+  CP = res_sum$cp,
+  BIC = res_sum$bic
+)
+```
+
+The outcome shows the seventh model including independent variable of Hours_Studied, Attendance, Sleep_Hours, Tutoring_Sessions, Motivation_Level, and Extracurricular_Activities has highest Adjusted R-squared which indicates the best model.
+
+```{r}
+coef(model_try,7)
+```
+
+The best model:
+
+Exam_Score = 45.34139460 + 0.29545837(Hours_Studied) + 0.19669554(Attendance) -0.02921849 (Sleep_Hours) + 0.48745279(Tutoring_Sessions) - 1.04530478(Motivation_LevelLow) - 0.53042024(Motivation_LevelMedium) + 0.52668052(Extracurricular_ActivitiesYes)
+
+## 15. Offer final summary perspectives about the data and the models that you produce, suggesting how your models or model analysis enhanced your understanding of the data.   (4 or 5 sentences) (ALL)
+
+This study explores the factors influencing student exam performance using a dataset of 6,607 observations, with both quantitative and categorical variables. A full regression model revealed significant predictors like study hours, attendance, extracurricular participation, and tutoring sessions, while sleep hours and school type were found non-significant. Multicollinearity among quantitative variables was not a concern. We found out excluding outliers improved model fit, raising the adjusted R-squared and reducing residual error. Ultimately, regarding the result of stepwise regression method and subset selection, the best model to explain student's exam score should include the variable of Hours_Studied, Attendance, Sleep_Hours, Tutoring_Sessions, Motivation_Level, and Extracurricular_Activities.
+
+
+
+
+
+
